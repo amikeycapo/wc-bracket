@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Cup 2026 — Ticket Path Tracker</title>
+<style>
+  :root{
+    --ink:#0B1F3A; --paper:#FBF8F1; --line:#D8D0BE;
+    --pathA:#C8102E; --pathA-soft:#F7DDE1;  /* MetLife R16 -> Miami QF */
+    --pathB:#0057B8; --pathB-soft:#D9E6F6;  /* LA QF */
+    --gold:#C9A227; --muted:#6B7280; --win:#1B7A43;
+    --chip:#EFE9DA;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);
+    font-family:"Inter","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;padding:0 0 80px;}
+  .wrap{max-width:1400px;margin:0 auto;padding:0 20px;}
+  header.top{padding:28px 20px 18px;border-bottom:2px solid var(--ink);
+    margin-bottom:8px;}
+  h1{font-family:"Georgia","Times New Roman",serif;font-size:30px;
+    font-weight:700;letter-spacing:-0.5px;line-height:1.05;}
+  h1 .yr{color:var(--gold);}
+  .sub{color:var(--muted);font-size:13px;margin-top:6px;max-width:760px;line-height:1.5;}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:12.5px;}
+  .legend .item{display:flex;align-items:center;gap:7px;}
+  .sw{width:14px;height:14px;border-radius:3px;display:inline-block;}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center;}
+  button.ctl{font:inherit;font-size:12.5px;border:1.5px solid var(--ink);
+    background:var(--paper);color:var(--ink);padding:7px 13px;border-radius:7px;
+    cursor:pointer;font-weight:600;transition:all .12s;}
+  button.ctl:hover{background:var(--ink);color:var(--paper);}
+  .savednote{font-size:12px;color:var(--muted);font-style:italic;}
+
+  /* layout: groups on left, bracket on right */
+  .cols{display:grid;grid-template-columns:300px 1fr;gap:26px;margin-top:18px;}
+  @media(max-width:1000px){.cols{grid-template-columns:1fr;}}
+
+  h2.sec{font-family:Georgia,serif;font-size:17px;margin:6px 0 10px;
+    padding-bottom:5px;border-bottom:1px solid var(--line);}
+  .grp{margin-bottom:14px;border:1px solid var(--line);border-radius:9px;
+    overflow:hidden;background:#fff;}
+  .grp h3{font-size:12px;letter-spacing:.5px;text-transform:uppercase;
+    background:var(--chip);padding:6px 10px;color:var(--ink);font-weight:700;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);
+    font-weight:600;padding:3px 4px;text-align:center;}
+  th.tn{text-align:left;}
+  td{padding:3px 4px;text-align:center;border-top:1px solid #f0ece1;}
+  td.tn{text-align:left;font-weight:500;}
+  td.tn input{font:inherit;font-weight:600;border:none;background:transparent;
+    width:104px;color:var(--ink);}
+  td input.num{font:inherit;width:30px;text-align:center;border:1px solid #e6e0d0;
+    border-radius:4px;padding:2px 0;background:#fff;}
+  td input.num:focus{outline:2px solid var(--gold);border-color:var(--gold);}
+  tr.pos1{background:rgba(201,162,39,.13);}
+  tr.pos2{background:rgba(201,162,39,.06);}
+  .qmark{font-size:9px;font-weight:700;padding:1px 4px;border-radius:4px;margin-left:4px;}
+  .q1{background:var(--gold);color:#fff;}
+  .q2{background:#E4D9B0;color:#5b4a13;}
+  .q3{background:#eee;color:#888;}
+
+  /* bracket */
+  .bracket-scroll{overflow-x:auto;padding-bottom:14px;}
+  .rounds{display:flex;gap:0;min-width:1050px;}
+  .round{flex:1;min-width:165px;padding:0 8px;}
+  .round h4{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;
+    color:var(--muted);text-align:center;margin-bottom:10px;font-weight:700;}
+  .tie{border:1px solid var(--line);border-radius:8px;background:#fff;
+    margin-bottom:10px;overflow:hidden;font-size:11.5px;position:relative;}
+  .tie .slot{display:flex;justify-content:space-between;align-items:center;
+    padding:6px 8px;cursor:pointer;gap:6px;}
+  .tie .slot:first-child{border-bottom:1px solid #eee;}
+  .tie .slot:hover{background:#f6f2e7;}
+  .tie .slot .nm{font-weight:600;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;}
+  .tie .slot .nm.tbd{color:#b8b2a2;font-weight:500;font-style:italic;}
+  .tie .slot.won .nm{color:var(--win);}
+  .tie .slot.won::after{content:"✓";color:var(--win);font-weight:700;font-size:11px;}
+  .tie .mtag{font-size:8.5px;color:var(--muted);padding:2px 8px;background:#faf7ef;
+    border-top:1px dashed #eee;letter-spacing:.3px;}
+  .tie.pA{border-color:var(--pathA);border-width:2px;box-shadow:0 0 0 3px var(--pathA-soft);}
+  .tie.pB{border-color:var(--pathB);border-width:2px;box-shadow:0 0 0 3px var(--pathB-soft);}
+  .tie.feedA{background:var(--pathA-soft);}
+  .tie.feedA{background:var(--pathA-soft);}
+  .tie.feedB{background:var(--pathB-soft);}
+  .tie.tix .mtag{font-weight:700;color:#fff;}
+  .tie.pA .mtag{background:var(--pathA);color:#fff;}
+  .tie.pB .mtag{background:var(--pathB);color:#fff;}
+  .ticket-badge{position:absolute;top:-8px;right:6px;font-size:8.5px;font-weight:700;
+    padding:1px 6px;border-radius:8px;color:#fff;letter-spacing:.3px;}
+  .bA{background:var(--pathA);}
+  .bB{background:var(--pathB);}
+  .spacer{height:18px;}
+  .hint{font-size:11px;color:var(--muted);font-style:italic;margin:4px 8px 0;}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>World Cup <span class="yr">2026</span> — Ticket Path Tracker</h1>
+    <p class="sub">Edit goals in the group tables; positions re-sort automatically. The knockout bracket auto-advances the higher seed as a projection — click any team in a tie to override the winner. Your three ticket games are outlined and their feeder paths shaded.</p>
+    <div class="legend">
+      <span class="item"><span class="sw" style="background:var(--pathA)"></span> Path 1 — MetLife R16 (M91) → Miami QF (M99)</span>
+      <span class="item"><span class="sw" style="background:var(--pathB)"></span> Path 2 — LA QF (M98)</span>
+      <span class="item"><span class="qmark q1" style="margin:0">1st</span> auto-seeded winner</span>
+      <span class="item"><span class="qmark q2" style="margin:0">2nd</span> runner-up</span>
+    </div>
+    <div class="controls">
+      <button class="ctl" id="resetWinners">Reset projections</button>
+      <button class="ctl" id="clearAll">Clear all my edits</button>
+      <span class="savednote" id="saveNote">Changes save automatically in this browser.</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="cols">
+    <section>
+      <h2 class="sec">Group standings</h2>
+      <div id="groups"></div>
+    </section>
+    <section>
+      <h2 class="sec">Knockout bracket</h2>
+      <p class="hint">Scroll right to follow the path to the Final. Third-place qualifiers (the * slots) won't resolve until all groups finish June 27 — those stay as placeholders.</p>
+      <div class="bracket-scroll"><div class="rounds" id="bracket"></div></div>
+    </section>
+  </div>
+</div>
+
+<script>
+// ---------- DATA: current standings through June 21 (CBS) — through June 21 FINAL (Egypt 3-1 NZ) ----------
+const GROUPS = {
+  A:[["Mexico",2,0,0,3,0],["South Korea",1,0,1,2,2],["Czechia",0,1,1,2,3],["South Africa",0,1,1,1,3]],
+  B:[["Canada",1,1,0,7,1],["Switzerland",1,1,0,5,2],["Bosnia & Herz",0,1,1,2,5],["Qatar",0,1,1,1,7]],
+  C:[["Brazil",1,1,0,4,1],["Morocco",1,1,0,2,1],["Scotland",1,0,1,1,1],["Haiti",0,0,2,0,4]],
+  D:[["USA",2,0,0,6,1],["Australia",1,0,1,2,2],["Paraguay",1,0,1,1,2],["Türkiye",0,0,2,1,5]],
+  E:[["Germany",2,0,0,9,2],["Ivory Coast",1,0,0,1,0],["Ecuador",0,1,1,0,1],["Curacao",0,1,1,1,7]],
+  F:[["Netherlands",1,1,0,7,3],["Sweden",1,0,1,6,6],["Japan",0,1,0,2,2],["Tunisia",0,0,1,1,5]],
+  G:[["New Zealand",0,1,1,3,5],["Iran",0,2,0,2,2],["Egypt",1,1,0,4,2],["Belgium",0,2,0,1,1]],
+  H:[["Saudi Arabia",0,1,1,1,5],["Uruguay",0,2,0,3,3],["Spain",1,1,0,4,0],["Cabo Verde",0,2,0,2,2]],
+  I:[["Norway",1,0,0,4,1],["France",1,0,0,3,1],["Senegal",0,0,1,1,3],["Iraq",0,0,1,1,4]],
+  J:[["Argentina",1,0,0,3,0],["Austria",1,0,0,3,1],["Jordan",0,0,1,1,3],["Algeria",0,0,1,0,3]],
+  K:[["Colombia",1,0,0,3,1],["DR Congo",0,1,0,1,1],["Portugal",0,1,0,1,1],["Uzbekistan",0,0,1,1,3]],
+  L:[["England",1,0,0,4,2],["Ghana",1,0,0,1,0],["Panama",0,0,1,0,1],["Croatia",0,0,1,2,4]]
+};
+// stored as [name, W, D, L, GF, GA]
+
+// group winners that host a 3rd-place team in R32 (Annex C anchor)
+const THIRD_HOST = ["A","C","D","E","G","I","K","L"];
+
+// ---------- R32 match definitions (VERIFIED from FIFA official source) ----------
+// Each slot ref: '1X'/'2X' = group X winner/runner-up; '3:GROUPS' = 3rd-place from one of listed groups
+const R32 = [
+  {id:"M73", a:"2A", b:"2B"},
+  {id:"M74", a:"1E", b:"3:ABCDF"},
+  {id:"M75", a:"1F", b:"2C"},
+  {id:"M76", a:"1C", b:"2F"},
+  {id:"M77", a:"1I", b:"3:CDFGH"},
+  {id:"M78", a:"2E", b:"2I"},
+  {id:"M79", a:"1A", b:"3:CEFHI"},
+  {id:"M80", a:"1L", b:"3:EHIJK"},
+  {id:"M81", a:"1D", b:"3:BEFIJ"},
+  {id:"M82", a:"1G", b:"3:AEHIJ"},
+  {id:"M83", a:"2K", b:"2L"},
+  {id:"M84", a:"1H", b:"2J"},
+  {id:"M85", a:"1B", b:"3:EFGIJ"},
+  {id:"M86", a:"1J", b:"2H"},
+  {id:"M87", a:"1K", b:"3:DEIJL"},
+  {id:"M88", a:"2D", b:"2G"}
+];
+// R16: winners flow (VERIFIED). Path A = M91->M99 ; Path B = M98 (from M93/M94)
+const R16 = [
+  {id:"M89", a:"M74", b:"M77"},
+  {id:"M90", a:"M73", b:"M75"},
+  {id:"M91", a:"M76", b:"M78", ticket:"A", label:"MetLife R16 · M91 · YOURS"},
+  {id:"M92", a:"M79", b:"M80", feed:"A"},
+  {id:"M93", a:"M83", b:"M84", feed:"B"},
+  {id:"M94", a:"M81", b:"M82", feed:"B"},
+  {id:"M95", a:"M86", b:"M88"},
+  {id:"M96", a:"M85", b:"M87"}
+];
+const QF = [
+  {id:"M97", a:"M89", b:"M90"},
+  {id:"M98", a:"M93", b:"M94", ticket:"B", label:"LA QF · M98 · YOURS"},
+  {id:"M99", a:"M91", b:"M92", ticket:"A", label:"Miami QF · M99 · YOURS"},
+  {id:"M100", a:"M95", b:"M96"}
+];
+const SF = [
+  {id:"M101", a:"M97", b:"M98", feed:"B"},
+  {id:"M102", a:"M99", b:"M100", feed:"A"}
+];
+const FINAL = [{id:"M104", a:"M101", b:"M102"}];
+
+// ---------- persistence ----------
+const LS_KEY = "wc26_bracket_v1";
+let state = loadState();
+function loadState(){
+  try{ const s = JSON.parse(localStorage.getItem(LS_KEY)); return s||{goals:{},winners:{}}; }
+  catch(e){ return {goals:{},winners:{}}; }
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){} }
+
+// merge stored goal edits into a working copy
+function workingGroups(){
+  const g = JSON.parse(JSON.stringify(GROUPS));
+  for(const grp in g){
+    g[grp].forEach((row,i)=>{
+      const k = grp+":"+i;
+      if(state.goals[k]){ row[4]=state.goals[k].gf; row[5]=state.goals[k].ga; }
+    });
+  }
+  return g;
+}
+function pts(r){ return r[1]*3 + r[2]; }
+function gd(r){ return r[4]-r[5]; }
+function sortGroup(rows){
+  return rows.map((r,i)=>({r,i})).sort((x,y)=>{
+    return pts(y.r)-pts(x.r) || gd(y.r)-gd(x.r) || y.r[4]-x.r[4] || x.i-y.i;
+  });
+}
+
+// ranked positions per group -> {"1A":name,"2A":name,"3A":name}
+function seedMap(){
+  const g = workingGroups(); const m={}; const thirds=[];
+  for(const grp in g){
+    const sorted = sortGroup(g[grp]);
+    m["1"+grp]=sorted[0].r[0];
+    m["2"+grp]=sorted[1].r[0];
+    m["3"+grp]=sorted[2].r[0];
+    thirds.push({grp, name:sorted[2].r[0], p:pts(sorted[2].r), gd:gd(sorted[2].r), gf:sorted[2].r[4]});
+  }
+  // rank thirds, top 8 qualify
+  thirds.sort((a,b)=> b.p-a.p || b.gd-a.gd || b.gf-a.gf);
+  const top8 = thirds.slice(0,8).map(t=>t.grp);
+  return {m, top8, thirds};
+}
+
+// ---------- resolution ----------
+const matchById={};
+[...R32,...R16,...QF,...SF,...FINAL].forEach(m=>matchById[m.id]=m);
+
+// resolve a seed/3rd reference to a team name (or placeholder)
+function resolveRef(ref, sm){
+  if(/^[12][A-L]$/.test(ref)) return sm.m[ref]||"TBD";
+  if(ref.startsWith("3:")){
+    // third place from one of the listed groups, IF that group's 3rd has qualified.
+    const groups = ref.slice(2).split("");
+    // find which of these groups' 3rd-place team is among the top 8 AND not yet assigned
+    const cands = groups.filter(g=>sm.top8.includes(g));
+    if(cands.length===0) return "3rd place*";
+    // we cannot know exact slot assignment without Annex C; show the set as a hint
+    if(cands.length===1) return sm.m["3"+cands[0]]+" (3rd)";
+    return "3rd: "+cands.map(g=>g).join("/")+"*";
+  }
+  return "TBD";
+}
+
+function teamsOf(id, sm, memo){
+  if(memo[id]) return memo[id];
+  const m = matchById[id];
+  let a,b;
+  if(/^M(7[3-9]|8[0-8])$/.test(id)){ // R32: refs are seed/3rd strings
+    a = resolveRef(m.a, sm);
+    b = resolveRef(m.b, sm);
+  } else { // later rounds: refs are match ids
+    a = winnerOf(m.a, sm, memo);
+    b = winnerOf(m.b, sm, memo);
+  }
+  const res={a,b}; memo[id]=res; return res;
+}
+function isPlaceholder(x){ return /TBD|place\*|3rd:/.test(x); }
+function winnerOf(matchId, sm, memo){
+  const ov = state.winners[matchId];
+  const t = teamsOf(matchId, sm, memo);
+  if(ov==="a") return t.a;
+  if(ov==="b") return t.b;
+  if(isPlaceholder(t.a) && !isPlaceholder(t.b)) return t.b;
+  if(isPlaceholder(t.b) && !isPlaceholder(t.a)) return t.a;
+  return t.a;
+}
+
+// ---------- render groups ----------
+function renderGroups(){
+  const g = workingGroups();
+  const sm = seedMap();
+  const host = document.getElementById("groups");
+  host.innerHTML="";
+  for(const grp in g){
+    const sorted = sortGroup(g[grp]);
+    const box=document.createElement("div"); box.className="grp";
+    let rows="";
+    sorted.forEach((o,rank)=>{
+      const r=o.r; const idx=o.i;
+      const posClass = rank===0?"pos1":rank===1?"pos2":"";
+      let badge="";
+      if(rank===0) badge='<span class="qmark q1">1st</span>';
+      else if(rank===1) badge='<span class="qmark q2">2nd</span>';
+      else if(rank===2){
+        const q = sm.top8.includes(grp);
+        badge = `<span class="qmark ${q?'q2':'q3'}">3rd${q?'✓':''}</span>`;
+      }
+      rows+=`<tr class="${posClass}">
+        <td class="tn"><input data-g="${grp}" data-i="${idx}" data-f="name" value="${r[0]}" readonly>${badge}</td>
+        <td>${pts(r)}</td>
+        <td>${gd(r)>0?'+':''}${gd(r)}</td>
+        <td><input class="num" data-g="${grp}" data-i="${idx}" data-f="gf" value="${r[4]}"></td>
+        <td><input class="num" data-g="${grp}" data-i="${idx}" data-f="ga" value="${r[5]}"></td>
+      </tr>`;
+    });
+    box.innerHTML=`<h3>Group ${grp}${THIRD_HOST.includes(grp)?' · winner hosts a 3rd':''}</h3>
+      <table><thead><tr><th class="tn">Team</th><th>Pts</th><th>GD</th><th>GF</th><th>GA</th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+    host.appendChild(box);
+  }
+  host.querySelectorAll('input.num').forEach(inp=>{
+    inp.addEventListener('change',e=>{
+      const {g,i,f}=e.target.dataset; const k=g+":"+i;
+      const cur = state.goals[k]||{};
+      const gNow = workingGroups()[g][i];
+      cur.gf = f==='gf'? (parseInt(e.target.value)||0): gNow[4];
+      cur.ga = f==='ga'? (parseInt(e.target.value)||0): gNow[5];
+      state.goals[k]=cur; save(); renderAll();
+    });
+  });
+}
+
+// ---------- render bracket ----------
+function tieEl(match, sm, memo){
+  const t = teamsOf(match.id, sm, memo);
+  const wOv = state.winners[match.id];
+  const el=document.createElement("div");
+  let cls="tie";
+  if(match.ticket==="A"){cls+=" pA tix";}
+  if(match.ticket==="B"){cls+=" pB tix";}
+  if(match.feed==="A"){cls+=" feedA";}
+  if(match.feed==="B"){cls+=" feedB";}
+  el.className=cls;
+  const tag = match.label ? match.label : match.id;
+  const projWinner = winnerOf(match.id, sm, {});
+  function slot(side,name){
+    const isW = (wOv===side) || (!wOv && name===projWinner && !isPlaceholder(name));
+    const tbd = isPlaceholder(name);
+    return `<div class="slot ${isW?'won':''}" data-m="${match.id}" data-side="${side}">
+      <span class="nm ${tbd?'tbd':''}">${name}</span></div>`;
+  }
+  el.innerHTML = slot("a",t.a)+slot("b",t.b)+`<div class="mtag">${tag}</div>`;
+  if(match.ticket){
+    const b=document.createElement("div");
+    b.className="ticket-badge "+(match.ticket==="A"?"bA":"bB");
+    b.textContent = match.ticket==="A"?"YOURS":"YOURS";
+    el.appendChild(b);
+  }
+  el.querySelectorAll('.slot').forEach(s=>{
+    s.addEventListener('click',()=>{
+      const side=s.dataset.side;
+      const tt=teamsOf(match.id,seedMap(),{});
+      if(isPlaceholder(side==="a"?tt.a:tt.b)) return; // can't pick placeholder
+      state.winners[match.id] = (state.winners[match.id]===side)? null : side;
+      if(!state.winners[match.id]) delete state.winners[match.id];
+      save(); renderAll();
+    });
+  });
+  return el;
+}
+function renderBracket(){
+  const sm=seedMap(); const memo={};
+  const cols=[
+    {h:"Round of 32",list:R32},
+    {h:"Round of 16",list:R16},
+    {h:"Quarter-finals",list:QF},
+    {h:"Semi-finals",list:SF},
+    {h:"Final",list:FINAL}
+  ];
+  const host=document.getElementById("bracket"); host.innerHTML="";
+  cols.forEach((c,ci)=>{
+    const col=document.createElement("div"); col.className="round";
+    col.innerHTML=`<h4>${c.h}</h4>`;
+    c.list.forEach((m,mi)=>{
+      if(ci>0){ const sp=document.createElement("div"); sp.className="spacer"; col.appendChild(sp); }
+      col.appendChild(tieEl(m,sm,memo));
+    });
+    host.appendChild(col);
+  });
+}
+
+function renderAll(){ renderGroups(); renderBracket(); }
+renderAll();
+
+document.getElementById("resetWinners").addEventListener("click",()=>{
+  state.winners={}; save(); renderAll();
+});
+document.getElementById("clearAll").addEventListener("click",()=>{
+  if(confirm("Clear all your goal edits and winner picks? This resets to the June 20 standings.")){
+    state={goals:{},winners:{}}; save(); renderAll();
+  }
+});
+</script>
+</body>
+</html>
